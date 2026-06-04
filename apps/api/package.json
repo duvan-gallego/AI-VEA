@@ -1,0 +1,13 @@
+{
+  "name": "@ai-vea/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": ".venv/bin/uvicorn app.main:app --reload",
+    "lint": ".venv/bin/ruff check .",
+    "format": ".venv/bin/ruff format .",
+    "format:check": ".venv/bin/ruff format --check .",
+    "typecheck": ".venv/bin/pyright",
+    "test": ".venv/bin/pytest"
+  }
+}

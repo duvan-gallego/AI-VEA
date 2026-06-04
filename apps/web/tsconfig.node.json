@@ -1,0 +1,11 @@
+{
+  "extends": "@ai-vea/config-typescript/base",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["eslint.config.js", "vite.config.ts", "vitest.config.ts"]
+}
