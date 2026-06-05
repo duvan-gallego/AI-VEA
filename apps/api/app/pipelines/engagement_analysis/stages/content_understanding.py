@@ -1,18 +1,16 @@
+from app.pipelines.engagement_analysis.content_analyzer import ContentUnderstandingAnalyzer
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
-from app.pipelines.engagement_analysis.models import ContentUnderstanding
 
 
 class ContentUnderstandingStage:
     name = "content_understanding"
 
+    def __init__(self, analyzer: ContentUnderstandingAnalyzer | None = None) -> None:
+        self._analyzer = analyzer or ContentUnderstandingAnalyzer()
+
     async def run(self, context: EngagementAnalysisContext) -> EngagementAnalysisContext:
-        context.content = ContentUnderstanding(
-            topics=[],
-            sentiment=None,
-            notes=[
-                "Placeholder content scan completed.",
-                "Future implementation can use transcription, topic extraction, claim detection, "
-                "and tone analysis.",
-            ],
+        context.content = await self._analyzer.analyze(
+            media=context.media,
+            structure=context.structure,
         )
         return context

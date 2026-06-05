@@ -2,8 +2,10 @@ import logging
 from collections.abc import Sequence
 from time import perf_counter
 
+from app.pipelines.engagement_analysis.content_analyzer import ContentUnderstandingAnalyzer
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
 from app.pipelines.engagement_analysis.llm_client import (
+    ChatCompletionClient,
     OpenAICompatibleChatClient,
     OpenAICompatibleChatOptions,
 )
@@ -67,8 +69,14 @@ def build_default_engagement_analysis_pipeline(
     media_options: MediaExtractionOptions | None = None,
     llm_options: OpenAICompatibleChatOptions | None = None,
 ) -> EngagementAnalysisPipeline:
+    chat_client: ChatCompletionClient | None = (
+        OpenAICompatibleChatClient(llm_options) if llm_options is not None else None
+    )
     structural_analyzer = StructuralUnderstandingAnalyzer(
-        chat_client=OpenAICompatibleChatClient(llm_options) if llm_options is not None else None,
+        chat_client=chat_client,
+    )
+    content_analyzer = ContentUnderstandingAnalyzer(
+        chat_client=chat_client,
     )
 
     return EngagementAnalysisPipeline(
@@ -77,7 +85,7 @@ def build_default_engagement_analysis_pipeline(
                 extractor=MediaUnderstandingExtractor(options=media_options),
             ),
             StructuralUnderstandingStage(analyzer=structural_analyzer),
-            ContentUnderstandingStage(),
+            ContentUnderstandingStage(analyzer=content_analyzer),
             EngagementUnderstandingStage(),
             AudienceSimulationStage(),
             ConsensusScoringStage(),

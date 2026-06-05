@@ -53,6 +53,45 @@ async def test_openai_compatible_chat_client_sends_json_schema_payload() -> None
 
 
 @pytest.mark.anyio
+async def test_openai_compatible_chat_client_accepts_per_call_json_schema() -> None:
+    captured_payload: dict[str, object] = {}
+    custom_schema = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "custom_layer_schema",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {"summary": {"type": "string"}},
+                "required": ["summary"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_payload
+        captured_payload = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"summary": "ok"}'}}]},
+        )
+
+    client = OpenAICompatibleChatClient(
+        options=_options(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = await client.complete_json(
+        [ChatMessage(role="user", content="Return JSON.")],
+        json_schema=custom_schema,
+    )
+
+    assert result == '{"summary": "ok"}'
+    assert captured_payload["response_format"] == custom_schema
+
+
+@pytest.mark.anyio
 async def test_openai_compatible_chat_client_supports_legacy_json_object_payload() -> None:
     captured_payload: dict[str, object] = {}
 

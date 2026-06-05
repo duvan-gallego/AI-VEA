@@ -26,7 +26,11 @@ class OpenAICompatibleChatOptions:
 
 
 class ChatCompletionClient(Protocol):
-    async def complete_json(self, messages: list[ChatMessage]) -> str: ...
+    async def complete_json(
+        self,
+        messages: list[ChatMessage],
+        json_schema: dict[str, Any] | None = None,
+    ) -> str: ...
 
 
 class OpenAICompatibleChatClient:
@@ -38,7 +42,11 @@ class OpenAICompatibleChatClient:
         self._options = options
         self._transport = transport
 
-    async def complete_json(self, messages: list[ChatMessage]) -> str:
+    async def complete_json(
+        self,
+        messages: list[ChatMessage],
+        json_schema: dict[str, Any] | None = None,
+    ) -> str:
         if not self._options.api_key:
             msg = "LLM_API_KEY is not configured."
             raise RuntimeError(msg)
@@ -51,7 +59,7 @@ class OpenAICompatibleChatClient:
             "temperature": self._options.temperature,
         }
         if self._options.response_format == "json_schema":
-            payload["response_format"] = _build_json_schema_response_format()
+            payload["response_format"] = json_schema or _build_json_schema_response_format()
         elif self._options.response_format == "json_object":
             payload["response_format"] = {"type": "json_object"}
         headers = {"Authorization": f"Bearer {self._options.api_key}"}
