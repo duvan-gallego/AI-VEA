@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +14,7 @@ from app.pipelines.engagement_analysis.models import (
 )
 
 TRANSCRIPT_CONTEXT_LIMIT = 12_000
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +46,9 @@ class StructuralUnderstandingAnalyzer:
             )
 
         if self._chat_client is None or not self._options.enabled:
+            logger.info(
+                "Skipping LLM structural analysis because chat client is not configured",
+            )
             return _build_heuristic_structure(
                 media,
                 notes=[
@@ -53,9 +58,18 @@ class StructuralUnderstandingAnalyzer:
             )
 
         try:
+            logger.info(
+                "Starting LLM structural analysis transcript_chars=%s scenes=%s frames=%s "
+                "audio_features=%s",
+                len(media.transcript),
+                len(media.scenes),
+                len(media.frames),
+                len(media.audio_features),
+            )
             raw_response = await self._chat_client.complete_json(_build_messages(media))
             parsed_response = StructuralAnalysisResponse.model_validate_json(raw_response)
         except Exception as error:
+            logger.warning("LLM structural analysis skipped: %s", error)
             return _build_heuristic_structure(
                 media,
                 notes=[
@@ -64,6 +78,13 @@ class StructuralUnderstandingAnalyzer:
                 ],
             )
 
+        logger.info(
+            "Completed LLM structural analysis hook=%s setup=%s main_content=%s cta=%s",
+            parsed_response.hook is not None,
+            parsed_response.setup is not None,
+            parsed_response.main_content is not None,
+            parsed_response.cta is not None,
+        )
         return StructuralUnderstanding(
             hook=parsed_response.hook,
             setup=parsed_response.setup,

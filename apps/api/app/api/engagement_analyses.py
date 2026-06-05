@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
@@ -15,6 +16,7 @@ from app.services.engagement_analysis_processor import (
 )
 
 router = APIRouter(prefix="/engagement-analyses", tags=["engagement analyses"])
+logger = logging.getLogger(__name__)
 
 CHUNK_SIZE_BYTES = 1024 * 1024
 
@@ -50,8 +52,20 @@ async def create_engagement_analysis(
     original_filename = _validate_upload_metadata(file, settings)
     analysis_id = uuid4().hex
     stored_path = _build_upload_path(settings.video_upload_dir, analysis_id, original_filename)
+    logger.info(
+        "Received engagement analysis upload analysis_id=%s filename=%s content_type=%s",
+        analysis_id,
+        original_filename,
+        file.content_type or "application/octet-stream",
+    )
 
     size_bytes = await _persist_upload(file, stored_path, settings.video_max_upload_bytes)
+    logger.info(
+        "Stored engagement analysis upload analysis_id=%s path=%s size_bytes=%s",
+        analysis_id,
+        stored_path,
+        size_bytes,
+    )
     processing_result = await processor.enqueue(
         EngagementAnalysisProcessingRequest(
             analysis_id=analysis_id,
@@ -129,4 +143,5 @@ async def _persist_upload(file: UploadFile, destination: Path, max_bytes: int) -
             detail="Uploaded video cannot be empty.",
         )
 
+    logger.debug("Persisted upload destination=%s size_bytes=%s", destination, size_bytes)
     return size_bytes

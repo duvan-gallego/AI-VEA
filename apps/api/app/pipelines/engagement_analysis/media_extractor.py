@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,8 @@ from app.pipelines.engagement_analysis.models import (
     MediaUnderstanding,
     SceneSegment,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,24 +37,45 @@ class MediaUnderstandingExtractor:
         self._options = options or MediaExtractionOptions()
 
     async def extract(self, video_path: Path, analysis_id: str) -> MediaUnderstanding:
+        logger.info(
+            "Starting media extraction analysis_id=%s video_path=%s", analysis_id, video_path
+        )
         notes: list[str] = []
         transcript = self._extract_transcript(video_path, notes)
         scenes = self._detect_scenes(video_path, notes)
         frames = self._extract_key_frames(video_path, analysis_id, scenes, notes)
         audio_features = self._extract_audio_features(video_path, transcript, notes)
+        duration_seconds = self._infer_duration_seconds(scenes, audio_features)
+        logger.info(
+            "Completed media extraction analysis_id=%s transcript_chars=%s scenes=%s frames=%s "
+            "audio_features=%s duration_seconds=%s notes=%s",
+            analysis_id,
+            len(transcript),
+            len(scenes),
+            len(frames),
+            len(audio_features),
+            duration_seconds,
+            len(notes),
+        )
 
         return MediaUnderstanding(
             transcript=transcript,
             scenes=scenes,
             frames=frames,
             audio_features=audio_features,
-            duration_seconds=self._infer_duration_seconds(scenes, audio_features),
+            duration_seconds=duration_seconds,
             detected_modalities=["video", "audio"],
             notes=notes,
         )
 
     def _extract_transcript(self, video_path: Path, notes: list[str]) -> str:
         try:
+            logger.info(
+                "Starting transcript extraction video_path=%s model_size=%s local_files_only=%s",
+                video_path,
+                self._options.whisper_model_size,
+                self._options.whisper_local_files_only,
+            )
             result = subprocess.run(  # noqa: S603
                 [
                     sys.executable,
@@ -72,17 +96,28 @@ class MediaUnderstandingExtractor:
             )
             payload = json.loads(result.stdout)
             notes.append("Transcript extracted with faster-whisper.")
-            return str(payload.get("transcript", ""))
+            transcript = str(payload.get("transcript", ""))
+            logger.info("Completed transcript extraction transcript_chars=%s", len(transcript))
+            return transcript
         except subprocess.CalledProcessError as exc:
             details = self._format_process_error(exc)
             notes.append(f"Transcript extraction skipped: {details}")
+            logger.warning(
+                "Transcript extraction skipped video_path=%s reason=%s", video_path, details
+            )
             return ""
         except Exception as exc:
             notes.append(f"Transcript extraction skipped: {exc}")
+            logger.warning(
+                "Transcript extraction skipped video_path=%s",
+                video_path,
+                exc_info=True,
+            )
             return ""
 
     def _detect_scenes(self, video_path: Path, notes: list[str]) -> list[SceneSegment]:
         try:
+            logger.info("Starting scene detection video_path=%s", video_path)
             scenedetect = importlib.import_module("scenedetect")
             detectors = importlib.import_module("scenedetect.detectors")
             scene_list = cast(Any, scenedetect).detect(
@@ -97,9 +132,11 @@ class MediaUnderstandingExtractor:
                 for start_time, end_time in scene_list
             ]
             notes.append("Scenes detected with PySceneDetect.")
+            logger.info("Completed scene detection scenes=%s", len(scenes))
             return scenes
         except Exception as exc:
             notes.append(f"Scene detection skipped: {exc}")
+            logger.warning("Scene detection skipped video_path=%s", video_path, exc_info=True)
             return []
 
     def _extract_key_frames(
@@ -110,10 +147,19 @@ class MediaUnderstandingExtractor:
         notes: list[str],
     ) -> list[FrameSnapshot]:
         try:
+            logger.info(
+                "Starting key frame extraction video_path=%s candidate_scenes=%s",
+                video_path,
+                len(scenes),
+            )
             cv2 = importlib.import_module("cv2")
             capture = cast(Any, cv2).VideoCapture(str(video_path))
             if not capture.isOpened():
                 notes.append("Key frame extraction skipped: OpenCV could not read the video.")
+                logger.warning(
+                    "Key frame extraction skipped because OpenCV could not read video_path=%s",
+                    video_path,
+                )
                 return []
 
             fps = float(capture.get(cast(Any, cv2).CAP_PROP_FPS) or 0)
@@ -121,6 +167,10 @@ class MediaUnderstandingExtractor:
             if fps <= 0 or frame_count <= 0:
                 notes.append(
                     "Key frame extraction skipped: video FPS or frame count is unavailable.",
+                )
+                logger.warning(
+                    "Key frame extraction skipped: FPS/frame_count unavailable path=%s",
+                    video_path,
                 )
                 return []
 
@@ -151,9 +201,11 @@ class MediaUnderstandingExtractor:
 
             capture.release()
             notes.append("Key frames extracted with OpenCV.")
+            logger.info("Completed key frame extraction frames=%s", len(frames))
             return frames
         except Exception as exc:
             notes.append(f"Key frame extraction skipped: {exc}")
+            logger.warning("Key frame extraction skipped video_path=%s", video_path, exc_info=True)
             return []
 
     def _select_frame_timestamps(
@@ -180,6 +232,7 @@ class MediaUnderstandingExtractor:
         with tempfile.TemporaryDirectory() as temporary_dir:
             audio_path = Path(temporary_dir) / "audio.wav"
             try:
+                logger.info("Starting audio feature extraction video_path=%s", video_path)
                 self._extract_audio_with_ffmpeg(video_path, audio_path)
                 librosa = importlib.import_module("librosa")
                 numpy = importlib.import_module("numpy")
@@ -207,6 +260,12 @@ class MediaUnderstandingExtractor:
                 speech_rate = self._calculate_speech_rate(transcript, duration_seconds)
 
                 notes.append("Audio features extracted with ffmpeg and librosa.")
+                logger.info(
+                    "Completed audio feature extraction duration=%s speech_rate=%s tempo=%s",
+                    duration_seconds,
+                    speech_rate,
+                    tempo,
+                )
                 return [
                     AudioFeature(name="duration", value=duration_seconds, unit="seconds"),
                     AudioFeature(name="silence", value=silence, unit="seconds"),
@@ -217,6 +276,9 @@ class MediaUnderstandingExtractor:
                 ]
             except Exception as exc:
                 notes.append(f"Audio feature extraction skipped: {exc}")
+                logger.warning(
+                    "Audio feature extraction skipped video_path=%s", video_path, exc_info=True
+                )
                 return []
 
     def _extract_audio_with_ffmpeg(self, video_path: Path, audio_path: Path) -> None:
@@ -228,6 +290,7 @@ class MediaUnderstandingExtractor:
             )
             raise RuntimeError(msg)
 
+        logger.debug("Running ffmpeg audio extraction ffmpeg_path=%s", ffmpeg_path)
         subprocess.run(  # noqa: S603
             [
                 ffmpeg_path,

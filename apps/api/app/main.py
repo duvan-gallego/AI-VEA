@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.engagement_analyses import router as engagement_analyses_router
 from app.api.health import router as health_router
 from app.config import Settings, get_settings
+from app.logging import configure_logging
 
 
 @asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
+    configure_logging(resolved_settings.log_level)
 
     def get_settings_override() -> Settings:
         return resolved_settings

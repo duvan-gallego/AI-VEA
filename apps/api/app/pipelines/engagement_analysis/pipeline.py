@@ -1,4 +1,6 @@
+import logging
 from collections.abc import Sequence
+from time import perf_counter
 
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
 from app.pipelines.engagement_analysis.llm_client import (
@@ -23,6 +25,8 @@ from app.pipelines.engagement_analysis.stages.structural_understanding import (
 )
 from app.pipelines.engagement_analysis.structural_analyzer import StructuralUnderstandingAnalyzer
 
+logger = logging.getLogger(__name__)
+
 
 class EngagementAnalysisPipeline:
     def __init__(self, stages: Sequence[EngagementAnalysisStage]) -> None:
@@ -32,7 +36,29 @@ class EngagementAnalysisPipeline:
         current_context = context
 
         for stage in self._stages:
-            current_context = await stage.run(current_context)
+            started_at = perf_counter()
+            logger.info(
+                "Starting pipeline stage analysis_id=%s stage=%s",
+                current_context.analysis_id,
+                stage.name,
+            )
+            try:
+                current_context = await stage.run(current_context)
+            except Exception:
+                logger.exception(
+                    "Failed pipeline stage analysis_id=%s stage=%s",
+                    current_context.analysis_id,
+                    stage.name,
+                )
+                raise
+
+            elapsed_ms = int((perf_counter() - started_at) * 1000)
+            logger.info(
+                "Completed pipeline stage analysis_id=%s stage=%s elapsed_ms=%s",
+                current_context.analysis_id,
+                stage.name,
+                elapsed_ms,
+            )
 
         return current_context
 

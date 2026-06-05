@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -11,6 +12,8 @@ from app.pipelines.engagement_analysis.pipeline import (
     EngagementAnalysisPipeline,
     build_default_engagement_analysis_pipeline,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +59,7 @@ class LocalEngagementAnalysisProcessor:
                 model=resolved_settings.llm_model,
                 timeout_seconds=resolved_settings.llm_timeout_seconds,
                 temperature=resolved_settings.llm_temperature,
+                response_format=resolved_settings.llm_response_format,
             )
             if resolved_settings.llm_api_key
             else None
@@ -69,6 +73,12 @@ class LocalEngagementAnalysisProcessor:
         self,
         request: EngagementAnalysisProcessingRequest,
     ) -> EngagementAnalysisProcessingResult:
+        logger.info(
+            "Starting engagement analysis processing analysis_id=%s filename=%s size_bytes=%s",
+            request.analysis_id,
+            request.original_filename,
+            request.size_bytes,
+        )
         context = EngagementAnalysisContext(
             analysis_id=request.analysis_id,
             video_path=request.source_path,
@@ -82,6 +92,10 @@ class LocalEngagementAnalysisProcessor:
             msg = "Engagement analysis pipeline completed without a report."
             raise RuntimeError(msg)
 
+        logger.info(
+            "Completed engagement analysis processing analysis_id=%s status=completed",
+            request.analysis_id,
+        )
         return EngagementAnalysisProcessingResult(
             analysis_id=request.analysis_id,
             status="completed",
