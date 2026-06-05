@@ -1,6 +1,10 @@
 from collections.abc import Sequence
 
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
+from app.pipelines.engagement_analysis.llm_client import (
+    OpenAICompatibleChatClient,
+    OpenAICompatibleChatOptions,
+)
 from app.pipelines.engagement_analysis.media_extractor import (
     MediaExtractionOptions,
     MediaUnderstandingExtractor,
@@ -17,6 +21,7 @@ from app.pipelines.engagement_analysis.stages.recommendations import Recommendat
 from app.pipelines.engagement_analysis.stages.structural_understanding import (
     StructuralUnderstandingStage,
 )
+from app.pipelines.engagement_analysis.structural_analyzer import StructuralUnderstandingAnalyzer
 
 
 class EngagementAnalysisPipeline:
@@ -34,13 +39,18 @@ class EngagementAnalysisPipeline:
 
 def build_default_engagement_analysis_pipeline(
     media_options: MediaExtractionOptions | None = None,
+    llm_options: OpenAICompatibleChatOptions | None = None,
 ) -> EngagementAnalysisPipeline:
+    structural_analyzer = StructuralUnderstandingAnalyzer(
+        chat_client=OpenAICompatibleChatClient(llm_options) if llm_options is not None else None,
+    )
+
     return EngagementAnalysisPipeline(
         stages=[
             MediaUnderstandingStage(
                 extractor=MediaUnderstandingExtractor(options=media_options),
             ),
-            StructuralUnderstandingStage(),
+            StructuralUnderstandingStage(analyzer=structural_analyzer),
             ContentUnderstandingStage(),
             EngagementUnderstandingStage(),
             AudienceSimulationStage(),

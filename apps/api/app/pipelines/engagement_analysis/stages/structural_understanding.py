@@ -1,18 +1,13 @@
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
-from app.pipelines.engagement_analysis.models import StructuralUnderstanding
+from app.pipelines.engagement_analysis.structural_analyzer import StructuralUnderstandingAnalyzer
 
 
 class StructuralUnderstandingStage:
     name = "structural_understanding"
 
+    def __init__(self, analyzer: StructuralUnderstandingAnalyzer | None = None) -> None:
+        self._analyzer = analyzer or StructuralUnderstandingAnalyzer()
+
     async def run(self, context: EngagementAnalysisContext) -> EngagementAnalysisContext:
-        context.structure = StructuralUnderstanding(
-            hook_detected=None,
-            estimated_scene_count=None,
-            notes=[
-                "Placeholder structure scan completed.",
-                "Future implementation can inspect hooks, pacing, scene changes, and retention "
-                "arcs.",
-            ],
-        )
+        context.structure = await self._analyzer.analyze(context.media)
         return context

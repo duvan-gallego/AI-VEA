@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     whisper_compute_type: str = Field(default="int8", alias="WHISPER_COMPUTE_TYPE")
     whisper_local_files_only: bool = Field(default=True, alias="WHISPER_LOCAL_FILES_ONLY")
     ffmpeg_path: str | None = Field(default=None, alias="FFMPEG_PATH")
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        alias="LLM_BASE_URL",
+    )
+    llm_api_key: str | None = Field(default=None, alias="LLM_API_KEY")
+    llm_model: str = Field(default="gpt-4.1-mini", alias="LLM_MODEL")
+    llm_timeout_seconds: float = Field(default=30.0, alias="LLM_TIMEOUT_SECONDS", gt=0)
+    llm_temperature: float = Field(default=0.1, alias="LLM_TEMPERATURE", ge=0, le=2)
 
     model_config = SettingsConfigDict(
         env_file=".env",

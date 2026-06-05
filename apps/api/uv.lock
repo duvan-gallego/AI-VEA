@@ -14,6 +14,7 @@ dependencies = [
     { name = "anyio" },
     { name = "fastapi" },
     { name = "faster-whisper" },
+    { name = "httpx" },
     { name = "imageio-ffmpeg" },
     { name = "librosa" },
     { name = "opencv-python" },
@@ -25,7 +26,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -37,6 +37,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.9.0" },
     { name = "fastapi", specifier = ">=0.136.3" },
     { name = "faster-whisper", specifier = ">=1.2.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "imageio-ffmpeg", specifier = ">=0.6.0" },
     { name = "librosa", specifier = ">=0.11.0" },
     { name = "opencv-python", specifier = ">=4.13.0.92" },
@@ -48,7 +49,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pyright", specifier = ">=1.1.401" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-cov", specifier = ">=6.1.1" },

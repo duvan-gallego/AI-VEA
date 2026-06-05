@@ -42,7 +42,20 @@ class MediaUnderstanding(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class StructuralSection(BaseModel):
+    title: str
+    summary: str = ""
+    start_seconds: float | None = None
+    end_seconds: float | None = None
+    evidence: list[str] = Field(default_factory=list)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+
+
 class StructuralUnderstanding(BaseModel):
+    hook: StructuralSection | None = None
+    setup: StructuralSection | None = None
+    main_content: StructuralSection | None = None
+    cta: StructuralSection | None = None
     hook_detected: bool | None = None
     estimated_scene_count: int | None = None
     notes: list[str] = Field(default_factory=list)

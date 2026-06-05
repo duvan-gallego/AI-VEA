@@ -4,6 +4,7 @@ from typing import Literal, Protocol
 
 from app.config import Settings, get_settings
 from app.pipelines.engagement_analysis.context import EngagementAnalysisContext
+from app.pipelines.engagement_analysis.llm_client import OpenAICompatibleChatOptions
 from app.pipelines.engagement_analysis.media_extractor import MediaExtractionOptions
 from app.pipelines.engagement_analysis.models import EngagementAnalysisReport
 from app.pipelines.engagement_analysis.pipeline import (
@@ -48,7 +49,21 @@ class LocalEngagementAnalysisProcessor:
             whisper_local_files_only=resolved_settings.whisper_local_files_only,
             ffmpeg_path=resolved_settings.ffmpeg_path,
         )
-        self._pipeline = pipeline or build_default_engagement_analysis_pipeline(media_options)
+        llm_options = (
+            OpenAICompatibleChatOptions(
+                base_url=resolved_settings.llm_base_url,
+                api_key=resolved_settings.llm_api_key,
+                model=resolved_settings.llm_model,
+                timeout_seconds=resolved_settings.llm_timeout_seconds,
+                temperature=resolved_settings.llm_temperature,
+            )
+            if resolved_settings.llm_api_key
+            else None
+        )
+        self._pipeline = pipeline or build_default_engagement_analysis_pipeline(
+            media_options=media_options,
+            llm_options=llm_options,
+        )
 
     async def enqueue(
         self,
